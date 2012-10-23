@@ -11,7 +11,7 @@ module Grape
         original_mount mounts
         @combined_routes ||= {}
         mounts::routes.each do |route|
-          resource = route.instance_variable_get("@options")[:namespace].gsub("/", '').to_sym || 'global'
+          resource = route.route_path.gsub("/#{settings[:root_prefix]}", '').match('\/(\w*?)[\.\/\(]').captures.first || '/'
           @combined_routes[resource.downcase] ||= []
           @combined_routes[resource.downcase] << route
         end
@@ -42,8 +42,7 @@ module Grape
               :base_path => nil,
               :api_version => '0.1',
               :markdown => false,
-              :hide_documentation_path => false,
-              :prefix => '/'
+              :hide_documentation_path => false
             }
             options = defaults.merge(options)
 
@@ -52,6 +51,7 @@ module Grape
             @@class_name = options[:class_name] || options[:mount_path].gsub('/','')
             @@markdown = options[:markdown]
             @@hide_documentation_path = options[:hide_documentation_path]
+
             api_version = options[:api_version]
             base_path = options[:base_path]
 
@@ -66,11 +66,11 @@ module Grape
               end
 
               routes_array = routes.keys.map do |route|
-                  { :path => "#{@@mount_path}/#{route}.{format}" }
+                { :path => "#{@@mount_path}/#{route}" }
               end
 
               computed_base_path = base_path || "#{request.base_url}"
-              computed_base_path = "#{computed_base_path}/#{options[:prefix]}"              
+              computed_base_path = "#{computed_base_path}/#{settings[:root_prefix]}"
               {
                 apiVersion: api_version,
                 swaggerVersion: "1.1",
@@ -88,22 +88,20 @@ module Grape
               header['Access-Control-Allow-Origin'] = '*'
               header['Access-Control-Request-Method'] = '*'
 
-              routes = @@target_class::combined_routes
-
-              routes_array = routes.map do |k, route_classes|
-                route_classes.map do |route|
-                  notes = route.route_notes && @@markdown ? Kramdown::Document.new(route.route_notes.strip_heredoc).to_html : route.route_notes
-                  {
+              routes = @@target_class::combined_routes[params[:name]]
+              routes_array = routes.map do |route|
+                notes = route.route_notes && @@markdown ? Kramdown::Document.new(route.route_notes.strip_heredoc).to_html : route.route_notes
+                {
                     :path => parse_path(route.route_path, api_version),
                     :operations => [{
-                      :notes => notes,
-                      :summary => route.route_description || '',
-                      :nickname   => route.route_method + route.route_path.gsub(/[\/:\(\)\.]/,'-'),
-                      :httpMethod => route.route_method,
-                      :parameters => parse_header_params(route.route_headers) + parse_params(route.route_params, route.route_path, route.route_method)
-                    }]
-                  }
-                end
+                                        :notes => notes,
+                                        :summary => route.route_description || '',
+                                        :nickname   => route.route_method + route.route_path.gsub(/[\/:\(\)\.]/,'-'),
+                                        :httpMethod => route.route_method,
+                                        :parameters => parse_header_params(route.route_headers) +
+                                            parse_params(route.route_params, route.route_path, route.route_method)
+                                    }]
+                }
               end
               {
                 apiVersion: api_version,
