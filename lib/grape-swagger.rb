@@ -42,7 +42,8 @@ module Grape
               :base_path => nil,
               :api_version => '0.1',
               :markdown => false,
-              :hide_documentation_path => false
+              :hide_documentation_path => false,
+              :prefix => '/'
             }
             options = defaults.merge(options)
 
@@ -67,10 +68,13 @@ module Grape
               routes_array = routes.keys.map do |route|
                   { :path => "#{@@mount_path}/#{route}.{format}" }
               end
+
+              computed_base_path = base_path || "http://#{env['HTTP_HOST']}"
+              computed_base_path = "#{computed_base_path}/#{options[:prefix]}/#{api_version}"              
               {
                 apiVersion: api_version,
                 swaggerVersion: "1.1",
-                basePath: base_path || "http://#{env['HTTP_HOST']}",
+                basePath: computed_base_path,
                 operations:[],
                 apis: routes_array
               }
