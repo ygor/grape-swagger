@@ -69,7 +69,7 @@ module Grape
                   { :path => "#{@@mount_path}/#{route}.{format}" }
               end
 
-              computed_base_path = base_path || "http://#{env['HTTP_HOST']}"
+              computed_base_path = base_path || "#{request.base_url}"
               computed_base_path = "#{computed_base_path}/#{options[:prefix]}"              
               {
                 apiVersion: api_version,
@@ -106,7 +106,7 @@ module Grape
               {
                 apiVersion: api_version,
                 swaggerVersion: "1.1",
-                basePath: base_path || "http://#{env['HTTP_HOST']}",
+                basePath: base_path || "#{request.base_url}",
                 resourcePath: "",
                 apis: routes_array
               }
