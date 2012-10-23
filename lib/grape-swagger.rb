@@ -11,7 +11,7 @@ module Grape
         original_mount mounts
         @combined_routes ||= {}
         mounts::routes.each do |route|
-          resource = route.route_path.match('\/(\w*?)[\.\/\(]').captures.first || '/'
+          resource = route.instance_variable_get("@options")[:namespace].gsub("/", '').to_sym || 'global'
           @combined_routes[resource.downcase] ||= []
           @combined_routes[resource.downcase] << route
         end
@@ -87,22 +87,24 @@ module Grape
             get "#{@@mount_path}/:name" do
               header['Access-Control-Allow-Origin'] = '*'
               header['Access-Control-Request-Method'] = '*'
-              routes = @@target_class::combined_routes[params[:name]]
-              routes_array = routes.map do |route|
-                notes = route.route_notes && @@markdown ? Kramdown::Document.new(route.route_notes.strip_heredoc).to_html : route.route_notes
-                {
-                  :path => parse_path(route.route_path, api_version),
-                  :operations => [{
-                    :notes => notes,
-                    :summary => route.route_description || '',
-                    :nickname   => route.route_method + route.route_path.gsub(/[\/:\(\)\.]/,'-'),
-                    :httpMethod => route.route_method,
-                    :parameters => parse_header_params(route.route_headers) +
-                      parse_params(route.route_params, route.route_path, route.route_method)
-                  }]
-                }
-              end
 
+              routes = @@target_class::combined_routes
+
+              routes_array = routes.map do |k, route_classes|
+                route_classes.map do |route|
+                  notes = route.route_notes && @@markdown ? Kramdown::Document.new(route.route_notes.strip_heredoc).to_html : route.route_notes
+                  {
+                    :path => parse_path(route.route_path, api_version),
+                    :operations => [{
+                      :notes => notes,
+                      :summary => route.route_description || '',
+                      :nickname   => route.route_method + route.route_path.gsub(/[\/:\(\)\.]/,'-'),
+                      :httpMethod => route.route_method,
+                      :parameters => parse_header_params(route.route_headers) + parse_params(route.route_params, route.route_path, route.route_method)
+                    }]
+                  }
+                end
+              end
               {
                 apiVersion: api_version,
                 swaggerVersion: "1.1",
