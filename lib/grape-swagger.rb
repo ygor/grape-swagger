@@ -70,7 +70,7 @@ module Grape
               end
 
               computed_base_path = base_path || "http://#{env['HTTP_HOST']}"
-              computed_base_path = "#{computed_base_path}/#{options[:prefix]}/#{api_version}"              
+              computed_base_path = "#{computed_base_path}/#{options[:prefix]}"              
               {
                 apiVersion: api_version,
                 swaggerVersion: "1.1",
