@@ -68,8 +68,9 @@ module Grape
                 { :path => "#{@@mount_path}/#{route}" }
               end
 
-              computed_base_path = base_path || "#{request.base_url}"
-              computed_base_path = "#{computed_base_path}/#{settings[:root_prefix]}"
+              prefix = settings[:root_prefix]
+              computed_base_path = "#{request.base_url}#{'/' + base_path.gsub(/$\//, '') unless base_path.nil?}"
+              computed_base_path = "#{computed_base_path}#{'/' + settings[:root_prefix].gsub(/$\//, '') unless settings[:root_prefix].nil?}"
               {
                 apiVersion: api_version,
                 swaggerVersion: "1.1",
@@ -160,7 +161,7 @@ module Grape
 
             def parse_path(path, version)
               # adapt format to swagger format
-              parsed_path = path.gsub('(.:format)', '.{format}')
+              parsed_path = path.gsub('(.:format)', '')
               # This is attempting to emulate the behavior of 
               # Rack::Mount::Strexp. We cannot use Strexp directly because 
               # all it does is generate regular expressions for parsing URLs. 
