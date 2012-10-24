@@ -5,7 +5,6 @@ source "http://rubygems.org"
 
 gem 'grape', '~> 0.2.0'
 gem 'kramdown'
-gem 'activesupport'
 
 # Add dependencies to develop your gem here.
 # Include everything needed to run rake, tests, features, etc.
