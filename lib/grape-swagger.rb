@@ -4,7 +4,6 @@ module Grape
   class API
     class << self
       attr_reader :combined_routes
-
       alias original_mount mount
 
       def mount(mounts)
@@ -176,30 +175,5 @@ module Grape
         end
       end
     end
-  end
-end
-
-class Object
-  ##
-  #   @person ? @person.name : nil
-  # vs
-  #   @person.try(:name)
-  #
-  # File activesupport/lib/active_support/core_ext/object/try.rb#L32
-   def try(*a, &b)
-    if a.empty? && block_given?
-      yield self
-    else
-      __send__(*a, &b)
-    end
-  end
-end
-
-class String
-  # strip_heredoc from rails
-  # File activesupport/lib/active_support/core_ext/string/strip.rb, line 22
-  def strip_heredoc
-    indent = scan(/^[ \t]*(?=\S)/).min.try(:size) || 0
-    gsub(/^[ \t]{#{indent}}/, '')
   end
 end
