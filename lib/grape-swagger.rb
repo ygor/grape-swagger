@@ -45,34 +45,32 @@ module Grape
             }
             options = defaults.merge(options)
 
-            @@target_class = options[:target_class]
-            @@mount_path = options[:mount_path]
             @@class_name = options[:class_name] || options[:mount_path].gsub('/','')
-            @@markdown = options[:markdown]
-            @@hide_documentation_path = options[:hide_documentation_path]
+            @@target_class = options[:target_class]
+            @@api_version = options[:api_version]
 
-            api_version = options[:api_version]
+            mount_path = options[:mount_path]
             base_path = options[:base_path]
+            root_prefix = @@target_class.settings[:root_prefix]
 
             desc 'Swagger compatible API description'
-            get @@mount_path do
+            get mount_path do
               header['Access-Control-Allow-Origin'] = '*'
               header['Access-Control-Request-Method'] = '*'
               routes = @@target_class::combined_routes
 
-              if @@hide_documentation_path
-                routes.reject!{ |route, value| "/#{route}/".index(parse_path(@@mount_path, nil) << '/') == 0 }
+              if options[:hide_documentation_path]
+                routes.reject!{ |route, value| "/#{route}/".index(parse_path(mount_path) << '/') == 0 }
               end
 
               routes_array = routes.keys.map do |route|
-                { :path => "#{@@mount_path}/#{route}" }
+                { :path => "#{mount_path}/#{route}" }
               end
 
-              prefix = settings[:root_prefix]
-              computed_base_path = "#{request.base_url}#{'/' + base_path.gsub(/$\//, '') unless base_path.nil?}"
-              computed_base_path = "#{computed_base_path}#{'/' + settings[:root_prefix].gsub(/$\//, '') unless settings[:root_prefix].nil?}"
+              computed_base_path = "#{request.base_url}#{'/' + base_path.gsub(/^\//, '') unless base_path.nil?}"
+              computed_base_path = "#{computed_base_path}#{'/' + root_prefix unless root_prefix.nil?}"
               {
-                apiVersion: api_version,
+                apiVersion: @@api_version,
                 swaggerVersion: "1.1",
                 basePath: computed_base_path,
                 operations:[],
@@ -84,29 +82,32 @@ module Grape
               {
                 "name" => { :desc => "Resource name of mounted API", :type => "string", :required => true },
               }
-            get "#{@@mount_path}/:name" do
+            get "#{mount_path}/:name" do
               header['Access-Control-Allow-Origin'] = '*'
               header['Access-Control-Request-Method'] = '*'
 
               routes = @@target_class::combined_routes[params[:name]]
               routes_array = routes.map do |route|
-                notes = route.route_notes && @@markdown ? Kramdown::Document.new(route.route_notes.strip_heredoc).to_html : route.route_notes
+                notes = route.route_notes && options[:markdown] ? Kramdown::Document.new(route.route_notes.strip_heredoc).to_html : route.route_notes
                 {
-                    :path => parse_path(route.route_path, api_version),
+                    :path => parse_path(route.route_path),
                     :operations => [{
                                         :notes => notes,
                                         :summary => route.route_description || '',
-                                        :nickname   => route.route_method + route.route_path.gsub(/[\/:\(\)\.]/,'-'),
+                                        :nickname   => route.route_method + (root_prefix.nil? ? route.route_path : route.route_path.gsub("/#{root_prefix}", '')).gsub(/[\/:\(\)\.]/,'-'),
                                         :httpMethod => route.route_method,
                                         :parameters => parse_header_params(route.route_headers) +
                                             parse_params(route.route_params, route.route_path, route.route_method)
                                     }]
                 }
               end
+
+              computed_base_path = "#{request.base_url}#{'/' + base_path.gsub(/^\//, '') unless base_path.nil?}"
+              computed_base_path = "#{computed_base_path}#{'/' + root_prefix unless root_prefix.nil?}"
               {
-                apiVersion: api_version,
+                apiVersion: @@api_version,
                 swaggerVersion: "1.1",
-                basePath: base_path || "#{request.base_url}",
+                basePath: computed_base_path,
                 resourcePath: "",
                 apis: routes_array
               }
@@ -157,7 +158,9 @@ module Grape
               end
             end
 
-            def parse_path(path, version)
+            def parse_path(path)
+              root_prefix = @@target_class.settings[:root_prefix]
+
               # adapt format to swagger format
               parsed_path = path.gsub('(.:format)', '')
               # This is attempting to emulate the behavior of 
@@ -167,7 +170,8 @@ module Grape
               # parsed path.
               parsed_path = parsed_path.gsub(/:([a-zA-Z_]\w*)/, '{\1}')
               # add the version
-              parsed_path = parsed_path.gsub('{version}', version) if version
+              parsed_path = parsed_path.gsub('{version}', @@api_version) if @@api_version
+              parsed_path = parsed_path.gsub("/#{root_prefix}", '') if root_prefix
               parsed_path
             end
           end
